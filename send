@@ -62,12 +62,17 @@ def send_morse_message(message):
     # Convert message to uppercase
     message = message.upper()
     
-    # Print the morse representation
-    morse_output = []
-    for char in message:
+    # Print the morse representation first
+    print_str = ""
+    for i, char in enumerate(message):
         if char in MORSE_CODE:
-            morse_output.append(MORSE_CODE[char])
-    print(" ".join(morse_output))
+            morse = MORSE_CODE[char]
+            # Add a space between morse code patterns except after the last one
+            if i < len(message) - 1 and char != ' ' and message[i+1] != ' ':
+                print_str += morse + " "
+            else:
+                print_str += morse
+    print(print_str)
     
     # Send the message
     for i, char in enumerate(message):
@@ -75,7 +80,7 @@ def send_morse_message(message):
             send_morse_character(MORSE_CODE[char])
             
             # Add space between letters (but not after spaces or last character)
-            if char != ' ' and i < len(message) - 1:
+            if char != ' ' and i < len(message) - 1 and message[i+1] != ' ':
                 time.sleep(LETTER_SPACE)
 
 def main():
