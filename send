@@ -2,12 +2,14 @@
 
 import sys
 import time
-import RPi.GPIO as GPIO
+from gpiozero import LED
+from gpiozero.pins.pigpio import PiGPIOFactory
+
+# Set up pigpio pin factory
+factory = PiGPIOFactory()
 
 # GPIO setup
-LED_PIN = 17  # GPIO pin number - adjust based on your connection
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(LED_PIN, GPIO.OUT)
+led = LED(17, pin_factory=factory)  # GPIO pin number - adjust based on your connection
 
 # Morse code timing (in seconds)
 DOT_DURATION = 0.2
@@ -28,29 +30,21 @@ MORSE_CODE = {
     '9': '----.', ' ': '/'
 }
 
-def turn_on_led():
-    """Turn the LED on."""
-    GPIO.output(LED_PIN, GPIO.HIGH)
-
-def turn_off_led():
-    """Turn the LED off."""
-    GPIO.output(LED_PIN, GPIO.LOW)
-
 def blink_dot():
     """Blink the LED for a dot duration."""
-    turn_on_led()
+    led.on()
     time.sleep(DOT_DURATION)
-    turn_off_led()
+    led.off()
 
 def blink_dash():
     """Blink the LED for a dash duration."""
-    turn_on_led()
+    led.on()
     time.sleep(DASH_DURATION)
-    turn_off_led()
+    led.off()
 
 def send_morse_character(morse_code):
     """Send a single character in Morse code."""
-    for symbol in morse_code:
+    for i, symbol in enumerate(morse_code):
         if symbol == '.':
             blink_dot()
         elif symbol == '-':
@@ -60,59 +54,57 @@ def send_morse_character(morse_code):
             continue  # Skip symbol space after '/'
         
         # Space between symbols within the same character
-        if symbol != morse_code[-1]:
+        if i < len(morse_code) - 1:  # If not the last symbol
             time.sleep(SYMBOL_SPACE)
 
 def send_morse_message(message):
     """Send a full message in Morse code."""
-    for char in message:
-        # Convert character to uppercase
-        char = char.upper()
-        
-        # Get Morse code for the character
-        if char in MORSE_CODE:
-            morse = MORSE_CODE[char]
-            print(morse, end=' ' if char != ' ' and message[message.index(char)+1:message.index(char)+2] != ' ' else '')
-            send_morse_character(morse)
-            
-            # Add space between characters (but not after spaces)
-            if char != ' ' and message.index(char) < len(message) - 1 and message[message.index(char) + 1] != ' ':
-                time.sleep(LETTER_SPACE)
+    # Convert message to uppercase
+    message = message.upper()
     
-    print()  # Newline after printing the full message
+    # Print the morse representation
+    morse_output = []
+    for char in message:
+        if char in MORSE_CODE:
+            morse_output.append(MORSE_CODE[char])
+    print(" ".join(morse_output))
+    
+    # Send the message
+    for i, char in enumerate(message):
+        if char in MORSE_CODE:
+            send_morse_character(MORSE_CODE[char])
+            
+            # Add space between letters (but not after spaces or last character)
+            if char != ' ' and i < len(message) - 1:
+                time.sleep(LETTER_SPACE)
 
 def main():
     """Main function to process command line arguments and send messages."""
-    try:
-        # Check command-line arguments
-        if len(sys.argv) != 3:
-            print(f"Usage: {sys.argv[0]} <repeat_count> \"<message>\"")
-            sys.exit(1)
-        
-        # Parse repeat count
-        try:
-            repeat_count = int(sys.argv[1])
-            if repeat_count <= 0:
-                raise ValueError("Repeat count must be a positive integer")
-        except ValueError as e:
-            print(e)
-            sys.exit(1)
-        
-        # Get message
-        message = sys.argv[2]
-        
-        # Send the message repeatedly
-        for i in range(repeat_count):
-            print(f"Sending message {i+1} of {repeat_count}: ", end='')
-            send_morse_message(message)
-            
-            # Add a pause between repetitions
-            if i < repeat_count - 1:
-                time.sleep(WORD_SPACE)
+    # Check command-line arguments
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <repeat_count> \"<message>\"")
+        sys.exit(1)
     
-    finally:
-        # Clean up GPIO
-        GPIO.cleanup()
+    # Parse repeat count
+    try:
+        repeat_count = int(sys.argv[1])
+        if repeat_count <= 0:
+            raise ValueError("Repeat count must be a positive integer")
+    except ValueError as e:
+        print(e)
+        sys.exit(1)
+    
+    # Get message
+    message = sys.argv[2]
+    
+    # Send the message repeatedly
+    for i in range(repeat_count):
+        print(f"Sending message {i+1} of {repeat_count}: ", end='')
+        send_morse_message(message)
+        
+        # Add a pause between repetitions
+        if i < repeat_count - 1:
+            time.sleep(WORD_SPACE)
 
 if __name__ == "__main__":
     main()
